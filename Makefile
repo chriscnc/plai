@@ -7,3 +7,4 @@ test:
 
 clean:
 	rm -rf compiled
+	rm *~

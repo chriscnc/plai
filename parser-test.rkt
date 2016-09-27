@@ -1,15 +1,11 @@
-#lang plai-typed
-;racket
+#lang racket
 
-;require rackunit
-(require "parser.rkt")
+(require rackunit
+	 "parser.rkt")
 
-(test 42 (interp (desugar (parse '42))))
-(test -42 (interp (desugar (parse '-42))))
-(test 3 (interp (desugar (parse '(+ 1 2)))))
-(test 3.3 (interp (desugar (parse '(+ 1.1 2.2)))))
-(test 2 (interp (desugar (parse '(* 1 2)))))
-(test 3 (interp (desugar (parse '(+ (* 1 2) 1)))))
-(test 7 (interp (desugar (parse '(+ (* 1 2) (+ 2 3))))))
-
+(check-equal? 42 (interp (parse '42)))
+(check-equal? 3 (interp (parse '(+ 1 2))))
+(check-equal? 2 (interp (parse '(* 1 2))))
+(check-equal? 3 (interp (parse '(+ (* 1 2) 1))))
+(check-equal? 7 (interp (parse '(+ (* 1 2) (+ 2 3)))))
 
