@@ -12,6 +12,14 @@
   [fdC (name : symbol) (arg : symbol) (body : ExprC)])
 
 
+(define-type Binding
+  [bind (name : symbol) (val : number)])
+
+(define-type-alias Env (listof Binding))
+(define mt-env empty)
+(define extend-env cons)
+
+
 (define (parse [s : s-expression]) : ExprC
   (cond
     [(s-exp-number? s) (numC (s-exp->number s))]
@@ -25,17 +33,26 @@
     [else (error 'parse "invalid input")]))
 
 
-(define (interp [e : ExprC] [fds : (listof FunDefC)]) : number
+(define (lookup [n : symbol] [env : Env]) : number
+  (cond
+    [(empty? env) (error n "name not found")]
+    [else (cond 
+	    [(symbol=? n (bind-name (first env))) 
+		         (bind-val (first env))]
+	    [else (lookup n (rest env))])]))
+
+
+(define (interp [e : ExprC] [env : Env] [fds : (listof FunDefC)]) : number
   (type-case ExprC e
     [numC  (n) n]
-    [idC   (s) (error 'interp "shouldn't get here")]
+    [idC   (n) (lookup n env)]
     [appC  (f a) (local ([define fd (get-fundef f fds)])
-		   (interp (subst a 
-				  (fdC-arg fd)
-				  (fdC-body fd))
+		   (interp (fdC-body fd)
+			   (extend-env (bind (fdC-arg fd) (interp a env fds))
+				       mt-env)
 			   fds))]
-    [plusC (l r) (+ (interp l fds) (interp r fds))]
-    [multC (l r) (* (interp l fds) (interp r fds))]))
+    [plusC (l r) (+ (interp l env fds) (interp r env fds))]
+    [multC (l r) (* (interp l env fds) (interp r env fds))]))
 
 
 (define (get-fundef [n : symbol] [fds : (listof FunDefC)]) : FunDefC
