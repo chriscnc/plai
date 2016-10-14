@@ -1,9 +1,9 @@
 
 all: 
-	raco make parser.rkt
+	raco make interp.rkt
 
 test:
-	raco test parser-test.rkt
+	raco test interp-test.rkt
 
 clean:
 	rm -rf compiled

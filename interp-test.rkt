@@ -1,7 +1,7 @@
 #lang racket
 
 (require rackunit
-	 "parser.rkt")
+	 "interp.rkt")
 
 (define fds 
   (list
