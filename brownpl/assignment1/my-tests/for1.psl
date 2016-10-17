@@ -1,0 +1,9 @@
+defvar x = 10 in {
+	print(
+	for(x=0; <(x,10); x = +(x,1)) {
+		print(x);
+		print(", ");
+	}
+	)
+}
+

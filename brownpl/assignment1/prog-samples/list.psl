@@ -1,0 +1,20 @@
+deffun empty() {
+	isempty: lambda(self) { true }
+} in
+deffun cons(elt, lst) {
+	first: lambda(self) { elt },
+	rest: lambda(self) { lst },
+	isempty: lambda(self) { false }
+}
+in 
+deffun length(lst)
+	if (lst@isempty()) then 0
+	else +(1, length(lst@rest()))
+	in {
+		print(length(cons(5, cons(2, empty()))));
+		print(" ");
+		print(length(empty()));
+		"";
+	}
+
+
