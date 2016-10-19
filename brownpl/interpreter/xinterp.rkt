@@ -39,6 +39,9 @@
     [(s-exp-symbol? sexp) (id (s-exp->symbol sexp))]
     [(s-exp-list? sexp) 
      (let ([sl (s-exp->list sexp)])
+       (if (s-exp-list? (first sl))
+	 (app (parse (first sl))
+	      (map parse (rest sl)))
        (case (s-exp->symbol (first sl))
 	 [(+) (binop '+ (parse (second sl)) (parse (third sl)))]
 	 [(-) (binop '- (parse (second sl)) (parse (third sl)))]
@@ -56,8 +59,8 @@
 		   (with bindings body))]
 	 [else (app (parse (first sl))
 		    (map parse (rest sl)))]
-	 ))]
-    [else (error 'parse "Parse error")]))
+	 )))]
+     [else (error 'parse "Parse error")]))
 
 
 (define (pair->Binding [pair : s-expression]) : Binding
@@ -119,11 +122,12 @@
     [app (f args) (let* ([c (interp f env)]
 			 [params (closureV-params c)]
 			 [body (closureV-body c)]
-			 [c-env (closureV-env c)]
-;			 [evald-args (map (lambda (arg) (interp arg env)) args)]
-			 [bindings (map2 binding params args)]
-			 [new-env (foldr extend-env env bindings)])
-		    (interp body new-env))]
+			 [c-env (closureV-env c)])
+		    (if (equal? (length args) (length params))
+		      (let* ([bindings (map2 binding params args)]
+			     [new-env (foldr extend-env env bindings)])
+			(interp body new-env))
+		      (error 'app "wrong number of args")))]
     ))
 
 
@@ -157,7 +161,10 @@
 		     {+ x z}}}))
 (test/exn (eval '{with {{x 2} {x 3}} 
 		     {+ x 2}}) "duplicate binding")
+(test (numV 42) (eval '{with {{f {fun {x} x}}} 
+          {f 42}}))
 (test (numV 6) (eval '{{fun {x y} {* x y}} 2 3}))
+(test/exn (eval '{{fun {x} x} 42 32}) "wrong number of arg")
 
 ;; test distinct
 (test (list 'a 'b) (distinct (list 'a 'a 'b 'b)))
