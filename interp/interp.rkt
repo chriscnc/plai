@@ -3,37 +3,58 @@
 (define-type ExprC
   [numC  (n : number)]
   [idC   (s : symbol)]
-  [appC  (fun : symbol) (arg : ExprC)]
+  [appC  (fun : ExprC) (arg : ExprC)]
   [plusC (l : ExprC) (r : ExprC)]
-  [multC (l : ExprC) (r : ExprC)])
+  [multC (l : ExprC) (r : ExprC)]
+  [lamC  (arg : symbol) (body : ExprC)])
 
-
-(define-type FunDefC
-  [fdC (name : symbol) (arg : symbol) (body : ExprC)])
-
+(define-type Value
+  [numV (n : number)]
+  [closV (arg : symbol) (body : ExprC) (env : Env)])
 
 (define-type Binding
-  [bind (name : symbol) (val : number)])
+  [bind (name : symbol) (val : Value)])
 
 (define-type-alias Env (listof Binding))
-(define mt-env empty)
-(define extend-env cons)
+
+(define (mt-env) : Env 
+  (list ))
+
+(define (extend-env [x : Binding] [e : Env]) : Env 
+  (cons x e))
 
 
-(define (parse [s : s-expression]) : ExprC
+;(define (parse [s : s-expression]) : ExprC
+;  (cond
+;    [(s-exp-number? s) (numC (s-exp->number s))]
+;    [(s-exp-symbol? s) (idC (s-exp->symbol s))]
+;    [(s-exp-list? s)
+;     (let ([sl (s-exp->list s)])
+;       (case (s-exp->symbol (first sl))
+;         [(+) (plusC (parse (second sl)) (parse (third sl)))]
+;         [(*) (multC (parse (second sl)) (parse (third sl)))]
+;	 [(lambda) (lamC (s-exp->symbol (first (second sl))) (parse (third sl)))]
+;         [else (appC (parse (first sl)) (parse (second sl)))]))]
+;    [else (error 'parse "invalid input")]))
+
+
+(define (num+ [l : Value] [r : Value]) : Value
   (cond
-    [(s-exp-number? s) (numC (s-exp->number s))]
-    [(s-exp-symbol? s) (idC (s-exp->symbol s))]
-    [(s-exp-list? s)
-     (let ([sl (s-exp->list s)])
-       (case (s-exp->symbol (first sl))
-         [(+) (plusC (parse (second sl)) (parse (third sl)))]
-         [(*) (multC (parse (second sl)) (parse (third sl)))]
-         [else (appC (s-exp->symbol (first sl)) (parse (second sl)))]))]
-    [else (error 'parse "invalid input")]))
+    [(and (numV? l) (numV? r))
+     (numV (+ (numV-n l) (numV-n r)))]
+    [else
+      (error 'num+ "one argument was not a number")]))
 
 
-(define (lookup [n : symbol] [env : Env]) : number
+(define (num* [l : Value] [r : Value]) : Value
+  (cond
+    [(and (numV? l) (numV? r))
+     (numV (* (numV-n l) (numV-n r)))]
+    [else
+      (error 'num* "one argument was not a number")]))
+
+
+(define (lookup [n : symbol] [env : Env]) : Value
   (cond
     [(empty? env) (error n "name not found")]
     [else (cond 
@@ -42,37 +63,38 @@
 	    [else (lookup n (rest env))])]))
 
 
-(define (interp [e : ExprC] [env : Env] [fds : (listof FunDefC)]) : number
-  (type-case ExprC e
-    [numC  (n) n]
+(define (interp [expr : ExprC] [env : Env]) : Value
+  (type-case ExprC expr
+    [numC  (n) (numV n)]
     [idC   (n) (lookup n env)]
-    [appC  (f a) (local ([define fd (get-fundef f fds)])
-		   (interp (fdC-body fd)
-			   (extend-env (bind (fdC-arg fd) (interp a env fds))
-				       mt-env)
-			   fds))]
-    [plusC (l r) (+ (interp l env fds) (interp r env fds))]
-    [multC (l r) (* (interp l env fds) (interp r env fds))]))
+    [plusC (l r) (num+ (interp l env) (interp r env))]
+    [multC (l r) (num* (interp l env) (interp r env))]
+    [lamC  (args body) (closV args body env)]
+    [appC  (f a) (local ([define f-value (interp f env)])
+		   (interp (closV-body f-value)
+			   (extend-env (bind (closV-arg f-value) 
+					     (interp a env))
+				       (closV-env f-value))))]
+    ))
+
+;(define (get-fundef [n : symbol] [fds : (listof FunDefC)]) : FunDefC
+;  (cond
+;    [(empty? fds) (error 'get-fundef "reference to undefined function")]
+;    [(cons? fds)  (cond
+;		    [(equal? n (fdC-name (first fds))) (first fds)]
+;		    [else (get-fundef n (rest fds))])]))
 
 
-(define (get-fundef [n : symbol] [fds : (listof FunDefC)]) : FunDefC
-  (cond
-    [(empty? fds) (error 'get-fundef "reference to undefined function")]
-    [(cons? fds)  (cond
-		    [(equal? n (fdC-name (first fds))) (first fds)]
-		    [else (get-fundef n (rest fds))])]))
-
-
-(define (subst [what : ExprC] [for : symbol] [in : ExprC]) : ExprC
-  (type-case ExprC in
-	     [numC (n) in]
-	     [idC  (s) (cond
-			 [(symbol=? s for) what]
-			 [else in])]
-	     [appC (f a) (appC f (subst what for a))]
-	     [plusC (l r) (plusC (subst what for l) 
-				 (subst what for r))]
-	     [multC (l r) (multC (subst what for l) 
-				 (subst what for r))]))
+;(define (subst [what : ExprC] [for : symbol] [in : ExprC]) : ExprC
+;  (type-case ExprC in
+;	     [numC (n) in]
+;	     [idC  (s) (cond
+;			 [(symbol=? s for) what]
+;			 [else in])]
+;	     [appC (f a) (appC f (subst what for a))]
+;	     [plusC (l r) (plusC (subst what for l) 
+;				 (subst what for r))]
+;	     [multC (l r) (multC (subst what for l) 
+;				 (subst what for r))]))
 
 
