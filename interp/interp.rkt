@@ -24,18 +24,19 @@
   (cons x e))
 
 
-;(define (parse [s : s-expression]) : ExprC
-;  (cond
-;    [(s-exp-number? s) (numC (s-exp->number s))]
-;    [(s-exp-symbol? s) (idC (s-exp->symbol s))]
-;    [(s-exp-list? s)
-;     (let ([sl (s-exp->list s)])
-;       (case (s-exp->symbol (first sl))
-;         [(+) (plusC (parse (second sl)) (parse (third sl)))]
-;         [(*) (multC (parse (second sl)) (parse (third sl)))]
-;	 [(lambda) (lamC (s-exp->symbol (first (second sl))) (parse (third sl)))]
-;         [else (appC (parse (first sl)) (parse (second sl)))]))]
-;    [else (error 'parse "invalid input")]))
+(define (parse [s : s-expression]) : ExprC
+  (cond
+    [(s-exp-number? s) (numC (s-exp->number s))]
+    [(s-exp-symbol? s) (idC (s-exp->symbol s))]
+    [(s-exp-list? s)
+     (let ([sl (s-exp->list s)])
+       (case (s-exp->symbol (first sl))
+         [(+) (plusC (parse (second sl)) (parse (third sl)))]
+         [(*) (multC (parse (second sl)) (parse (third sl)))]
+	 [(lambda) (lamC (s-exp->symbol (first (s-exp->list (second sl))))
+			 (parse (third sl)))]
+         [else (appC (parse (first sl)) (parse (second sl)))]))]
+    [else (error 'parse "invalid input")]))
 
 
 (define (num+ [l : Value] [r : Value]) : Value
