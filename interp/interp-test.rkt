@@ -3,43 +3,74 @@
 (require "interp.rkt")
 (print-only-errors true)
 
-(define (interp-ast [x : ExprC]) : Value
-  (interp x (mt-env)))
+;; test interp
+(define (interp-ast-res [x : ExprC]) : Result
+  (interp x mt-env mt-store))
+
+(define (interp-ast-val [x : ExprC]) : Value
+  (v*s-v (interp x mt-env mt-store)))
+
+;(define-type Result
+;  [v*s (v : Value) (s : Store)])
 
 (test (numV 42) 
-      (interp-ast (numC 42)))
+      (interp-ast-val (numC 42)))
 
 (test (numV 3)
-      (interp-ast (plusC (numC 1)
-			 (numC 2))))
+      (interp-ast-val (plusC (numC 1)
+			     (numC 2))))
 
 (test (numV 2)
-      (interp-ast (multC (numC 1)
-			 (numC 2))))
+      (interp-ast-val (multC (numC 1)
+			     (numC 2))))
 
 
 ; (+ 10 ((lambda (_) 5) 10))
 (test (numV 15)
-      (interp-ast (plusC (numC 10)
-			 (appC (lamC '_ (numC 5))
-			       (numC 10)))))
+      (interp-ast-val (plusC (numC 10)
+			     (appC (lamC '_ (numC 5))
+				   (numC 10)))))
 
 ; (lambda (x) ((lambda (y) (+ x y)) 4) 3)
 (test (numV 7) 
-      (interp-ast (appC (lamC 'x 
-			      (appC (lamC 'y 
-					  (plusC (idC 'x)
-						 (idC 'y)))
-				    (numC 4)))
-			(numC 3))))
+      (interp-ast-val (appC (lamC 'x 
+				  (appC (lamC 'y 
+					      (plusC (idC 'x)
+						     (idC 'y)))
+					(numC 4)))
+			    (numC 3))))
 
-(define (eval [expr : s-expression]) : Value
-  (interp (parse expr) (mt-env)))
+;(test (boxV (numV 42)) (interp-ast-val (boxC (numC 42))))
+;(test (boxV (numV 3)) (interp-ast-val (boxC (plusC (numC 1) (numC 2)))))
+;(test (numV 42) (interp-ast-val (unboxC (boxC (numC 42)))))
 
-(test (numV 42) (eval '42))
-(test (numV 3) (eval '(+ 1 2)))
-(test (numV 2) (eval '(* 1 2)))
-(test (closV 'x (idC 'x) (mt-env)) (eval '(lambda (x) x)))
-;(test (numV 15) (eval '(+ 10 ((lambda (_) 5) 10))))
-(parse '(lambda x 5))
-(parse '(+ 10 ((lambda (x) 5) 10)))
+; test store
+(test/exn (fetch 0 mt-store) "location not found")
+(test (numV 42) (fetch 0 (override-store (cell 0 (numV 42)) mt-store)))
+
+; test env
+(test/exn (lookup 'x mt-env) "name not found")
+(test 0 (lookup 'x (extend-env (bind 'x 0) mt-env)))
+(test 1 (lookup 'x (extend-env (bind 'x 1) 
+			       (extend-env (bind 'x 0) 
+					   mt-env))))
+
+; test parser/interp
+(test (numC 42) 
+      (parse '42))
+(test (plusC (numC 1) (numC 2)) 
+      (parse '(+ 1 2)))
+(test (plusC (numC 1) (numC 2)) 
+      (parse '(+ 1 2)))
+(test (multC (plusC (numC 1) (numC 1)) 
+	     (numC 2))
+      (parse '(* (+ 1 1) 2)))
+(test (multC (numC 1) 
+	     (plusC (numC 2) (numC 2))) 
+      (parse '(* 1 (+ 2 2))))
+(test (lamC 'x (plusC (idC 'x) (idC 'x)))
+      (parse '(lambda (x) (+ x x))))
+(test (appC (lamC 'x (idC 'x)) (plusC (numC 1) (numC 1)))
+      (parse '((lambda (x) x) (+ 1 1))))
+
+
