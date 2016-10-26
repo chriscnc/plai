@@ -37,21 +37,18 @@
 
 (define-type ExprC
   [numC  (n : number)]
-  [idC   (s : symbol)]
+  [varC   (s : symbol)]
   [appC  (fun : ExprC) (arg : ExprC)]
   [plusC (l : ExprC) (r : ExprC)]
   [multC (l : ExprC) (r : ExprC)]
   [lamC  (arg : symbol) (body : ExprC)]
-  [boxC  (arg : ExprC)]
-  [unboxC (arg : ExprC)]
-  [setboxC (b : ExprC) (v : ExprC)]
+  [setC (var : symbol) (arg : ExprC)]
   [seqC (b1 : ExprC) (b2 : ExprC)]
   )
 
 (define-type Value
   [numV (n : number)]
-  [closV (arg : symbol) (body : ExprC) (env : Env)]
-  [boxV (l : Location)])
+  [closV (arg : symbol) (body : ExprC) (env : Env)])
 
 (define-type Result
   [v*s (v : Value) (s : Store)])
@@ -59,7 +56,7 @@
 (define (interp [expr : ExprC] [env : Env] [sto : Store]) : Result
   (type-case ExprC expr
     [numC  (n) (v*s (numV n) sto)]
-    [idC   (n) (v*s (fetch (lookup n env) sto) sto)]
+    [varC   (n) (v*s (fetch (lookup n env) sto) sto)]
     [plusC (l r) (type-case Result (interp l env sto)
 		   [v*s (v-l s-l) 
 			(type-case Result (interp r env s-l)
@@ -71,23 +68,12 @@
 			  [v*s (v-r s-r)
 			       (v*s (num* v-l v-r) s-r)])])]
     [lamC  (a b) (v*s (closV a b env) sto)]
-    [boxC (a) (type-case Result (interp a env sto)
-	        [v*s (v-a s-a)
-		     (let ([where (new-loc)])
-		       (v*s (boxV where) 
-			    (override-store (cell where v-a) 
-					    s-a)))])]
-    [unboxC (b) (type-case Result (interp b env sto)
-	          [v*s (v-b s-b)
-		       (v*s (fetch (boxV-l v-b) s-b) s-b)])]
-    [setboxC (b v) (type-case Result (interp b env sto)
-		     [v*s (v-b s-b)
-			  (type-case Result (interp v env s-b)
-			    [v*s (v-v s-v)
-				 (v*s v-v
-				      (override-store (cell (boxV-l v-b)
-							    v-v)
-						      s-v))])])]
+    [setC (var val) (type-case Result (interp val env sto)
+		      [v*s (v-val s-val)
+			   (let ([where (lookup var env)]) ; get the l-value
+			     (v*s v-val
+				  (override-store (cell where v-val)
+						  s-val)))])]
     [seqC (b1 b2) (type-case Result (interp b1 env sto)
 	            [v*s (v-b1 s-b1)
 			 (interp b2 env s-b1)])]
@@ -130,19 +116,19 @@
 	(unbox n)))))
 
 
-(define (parse [s : s-expression]) : ExprC
-  (cond
-    [(s-exp-number? s) (numC (s-exp->number s))]
-    [(s-exp-symbol? s) (idC (s-exp->symbol s))]
-    [(s-exp-list? s)
-     (let ([sl (s-exp->list s)])
-       (cond 
-	 [(s-exp-list? (first sl))
-	  (appC (parse (first sl)) (parse (second sl)))]
-	 [else (case (s-exp->symbol (first sl))
-		 [(+) (plusC (parse (second sl)) (parse (third sl)))]
-		 [(*) (multC (parse (second sl)) (parse (third sl)))]
-		 [(lambda) (lamC (s-exp->symbol (first (s-exp->list (second sl))))
-				 (parse (third sl)))]
-		 )]))]
-    [else (error 'parse "invalid input")]))
+;(define (parse [s : s-expression]) : ExprC
+;  (cond
+;    [(s-exp-number? s) (numC (s-exp->number s))]
+;    [(s-exp-symbol? s) (varC (s-exp->symbol s))]
+;    [(s-exp-list? s)
+;     (let ([sl (s-exp->list s)])
+;       (cond 
+;	 [(s-exp-list? (first sl))
+;	  (appC (parse (first sl)) (parse (second sl)))]
+;	 [else (case (s-exp->symbol (first sl))
+;		 [(+) (plusC (parse (second sl)) (parse (third sl)))]
+;		 [(*) (multC (parse (second sl)) (parse (third sl)))]
+;		 [(lambda) (lamC (s-exp->symbol (first (s-exp->list (second sl))))
+;				 (parse (third sl)))]
+;		 )]))]
+;    [else (error 'parse "invalid input")]))

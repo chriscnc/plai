@@ -35,32 +35,31 @@
 (test (numV 7) 
       (interp-ast-val (appC (lamC 'x 
 				  (appC (lamC 'y 
-					      (plusC (idC 'x)
-						     (idC 'y)))
+					      (plusC (varC 'x)
+						     (varC 'y)))
 					(numC 4)))
 			    (numC 3))))
 
-(test (numV 42) (interp-ast-val (unboxC (boxC (numC 42)))))
 
 ; we want to test something like this...
-;(let (x (box 42))
+;(let (x 42)
 ;  (begin
-;    (setbox x 43)
-;    (unbox x)))
+;    (set! x 43)
+;    x))
 ; but we don't have 'let', so desugar to lambda...
 ;((lambda (x) 
 ;   (begin
-;     (setbox x 43)
-;     (unbox x)))
-; (box 42))
+;     (set! x 43)
+;     x))
+; 42)
 ; and test	 
 (test (numV 43)
       (interp-ast-val 
 	(appC 
 	  (lamC 'x (seqC
-		     (setboxC (idC 'x) (numC 43))
-		     (unboxC (idC 'x))))
-	  (boxC (numC 42)))))
+		     (setC 'x (numC 43))
+		     (varC 'x)))
+	  (numC 42))))
 
 
 ; test store
@@ -82,22 +81,22 @@
 ; don't have syntax for box, unbox, setbox, begin, or let
 ; in the parser, although begin and let could be desugared
 ; to lambda's
-(test (numC 42) 
-      (parse '42))
-(test (plusC (numC 1) (numC 2)) 
-      (parse '(+ 1 2)))
-(test (plusC (numC 1) (numC 2)) 
-      (parse '(+ 1 2)))
-(test (multC (plusC (numC 1) (numC 1)) 
-	     (numC 2))
-      (parse '(* (+ 1 1) 2)))
-(test (multC (numC 1) 
-	     (plusC (numC 2) (numC 2))) 
-      (parse '(* 1 (+ 2 2))))
-(test (lamC 'x (plusC (idC 'x) (idC 'x)))
-      (parse '(lambda (x) (+ x x))))
-(test (appC (lamC 'x (idC 'x)) (plusC (numC 1) (numC 1)))
-      (parse '((lambda (x) x) (+ 1 1))))
+;(test (numC 42) 
+;      (parse '42))
+;(test (plusC (numC 1) (numC 2)) 
+;      (parse '(+ 1 2)))
+;(test (plusC (numC 1) (numC 2)) 
+;      (parse '(+ 1 2)))
+;(test (multC (plusC (numC 1) (numC 1)) 
+;	     (numC 2))
+;      (parse '(* (+ 1 1) 2)))
+;(test (multC (numC 1) 
+;	     (plusC (numC 2) (numC 2))) 
+;      (parse '(* 1 (+ 2 2))))
+;(test (lamC 'x (plusC (varC 'x) (varC 'x)))
+;      (parse '(lambda (x) (+ x x))))
+;(test (appC (lamC 'x (varC 'x)) (plusC (numC 1) (numC 1)))
+;      (parse '((lambda (x) x) (+ 1 1))))
 
 ;; Exercise to desugar begin to lambda's
 ;(begin
