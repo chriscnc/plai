@@ -42,6 +42,26 @@
 
 (test (numV 42) (interp-ast-val (unboxC (boxC (numC 42)))))
 
+; we want to test something like this...
+;(let (x (box 42))
+;  (begin
+;    (setbox x 43)
+;    (unbox x)))
+; but we don't have 'let', so desugar to lambda...
+;((lambda (x) 
+;   (begin
+;     (setbox x 43)
+;     (unbox x)))
+; (box 42))
+; and test	 
+(test (numV 43)
+      (interp-ast-val 
+	(appC 
+	  (lamC 'x (seqC
+		     (setboxC (idC 'x) (numC 43))
+		     (unboxC (idC 'x))))
+	  (boxC (numC 42)))))
+
 
 ; test store
 (test/exn (fetch 0 mt-store) "location not found")
@@ -55,6 +75,9 @@
 					   mt-env))))
 
 ; test parser/interp
+; don't have syntax for box, unbox, setbox, begin, or let
+; in the parser, although begin and let could be desugared
+; to lambda's
 (test (numC 42) 
       (parse '42))
 (test (plusC (numC 1) (numC 2)) 
@@ -72,4 +95,19 @@
 (test (appC (lamC 'x (idC 'x)) (plusC (numC 1) (numC 1)))
       (parse '((lambda (x) x) (+ 1 1))))
 
-
+;; Exercise to desugar begin to lambda's
+;(begin
+;  (+ 1 2)
+;  (+ 3 4))
+;
+;; desugar to 'let'
+;(let (r1 (+ 1 2))
+;  (let (r2 (+ 3 4))
+;    r2))
+;
+;; desugar to 'lambda'
+;((lambda (r1)
+;   (lambda (r2)
+;     r2))
+; (+ 1 2)
+; (+ 3 4))

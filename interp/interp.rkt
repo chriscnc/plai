@@ -89,9 +89,9 @@
 		       (v*s (boxV where) 
 			    (override-store (cell where v-a) 
 					    s-a)))])]
-    [unboxC (a) (type-case Result (interp a env sto)
-	          [v*s (v-a s-a)
-		       (v*s (fetch (boxV-l v-a) s-a) s-a)])]
+    [unboxC (b) (type-case Result (interp b env sto)
+	          [v*s (v-b s-b)
+		       (v*s (fetch (boxV-l v-b) s-b) s-b)])]
     [setboxC (b v) (type-case Result (interp b env sto)
 		     [v*s (v-b s-b)
 			  (type-case Result (interp v env s-b)
