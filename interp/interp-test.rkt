@@ -66,6 +66,10 @@
 ; test store
 (test/exn (fetch 0 mt-store) "location not found")
 (test (numV 42) (fetch 0 (override-store (cell 0 (numV 42)) mt-store)))
+(let ([sto (override-store (cell 0 (numV 42)) mt-store)])
+  (test (list (cell 0 (numV 43)) 
+	      (cell 0 (numV 42)))
+	(override-store (cell 0 (numV 43)) sto)))
 
 ; test env
 (test/exn (lookup 'x mt-env) "name not found")
