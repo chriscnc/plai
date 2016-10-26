@@ -14,11 +14,11 @@
 
 (define-type-alias Store (listof Storage))
 (define mt-store empty)
-(define override-store cons)
 
+;(define override-store cons)
 ; alternative 'override-store' that avoids multiple bindings for a 
 ; location in the store
-(define (alt-override-store [cell : Storage] [sto : Store]) : Store
+(define (override-store [cell : Storage] [sto : Store]) : Store
   (cond 
     [(empty? sto) (cons cell mt-store)]
     [else (let ([cur-cell (first sto)])
@@ -26,7 +26,7 @@
 	      [(equal? (cell-location cell) (cell-location cur-cell))
 	       (cons cell (rest sto))]
 	      [else (cons cur-cell 
-			  (alt-override-store cell (rest sto)))]))]))
+			  (override-store cell (rest sto)))]))]))
 
 
 (define (lookup [n : symbol] [env : Env]) : Location
