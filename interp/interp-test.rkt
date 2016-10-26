@@ -40,9 +40,8 @@
 					(numC 4)))
 			    (numC 3))))
 
-;(test (boxV (numV 42)) (interp-ast-val (boxC (numC 42))))
-;(test (boxV (numV 3)) (interp-ast-val (boxC (plusC (numC 1) (numC 2)))))
-;(test (numV 42) (interp-ast-val (unboxC (boxC (numC 42)))))
+(test (numV 42) (interp-ast-val (unboxC (boxC (numC 42)))))
+
 
 ; test store
 (test/exn (fetch 0 mt-store) "location not found")
