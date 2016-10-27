@@ -1,0 +1,2 @@
+#!/bin/bash
+osx-dist/bin/assignment3-osx --brief --test-with-desugar typed-desugar-template.rkt suite/brown
