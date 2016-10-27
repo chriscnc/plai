@@ -44,11 +44,14 @@
   [lamC  (arg : symbol) (body : ExprC)]
   [setC (var : symbol) (arg : ExprC)]
   [seqC (b1 : ExprC) (b2 : ExprC)]
+  [objC (ns : (listof symbol)) (es : (listof ExprC))]
+  [msgC (o : ExprC) (n : symbol)]
   )
 
 (define-type Value
   [numV (n : number)]
-  [closV (arg : symbol) (body : ExprC) (env : Env)])
+  [closV (arg : symbol) (body : ExprC) (env : Env)]
+  [objV (ns : (listof symbol)) (vs : (listof Value))])
 
 (define-type Result
   [v*s (v : Value) (s : Store)])
@@ -77,6 +80,12 @@
     [seqC (b1 b2) (type-case Result (interp b1 env sto)
 	            [v*s (v-b1 s-b1)
 			 (interp b2 env s-b1)])]
+    [objC (ns es) (v*s (objV ns (map (lambda (e) 
+				  (interp e env sto)) 
+				es))
+		       sto)]
+    [msgC (o n) (v*s (lookup-msg n (interp o env sto))
+		     sto)]
     [appC (f a) (type-case Result (interp f env sto)
 		  [v*s (v-f s-f) 
 		       (type-case Result (interp a env s-f)
@@ -87,6 +96,16 @@
 						    (closV-env v-f))
 					(override-store (cell where v-a) s-a)))])])]
     ))
+
+
+(define (lookup-msg [n : symbol] [o : Value]) : Value
+  (letrec ([f (lambda (ns vs)
+		(let ([cur-n (first ns)]
+		      [cur-v (first vs)])
+		  (if (symbol=? cur-n n)
+		    cur-v
+		    (f (rest ns) (rest vs)))))])
+    (f (objV-ns o) (objV-vs o))))
 
 
 (define (num+ [l : Value] [r : Value]) : Value
