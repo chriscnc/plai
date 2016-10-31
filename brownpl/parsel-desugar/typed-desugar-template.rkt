@@ -61,7 +61,7 @@
 	   (map-add-num id-exps)
 	   (IfC (all (map (lambda (e) (check-type e "string")) id-exps))
 		(map-add-str id-exps)
-		(ErrorC (StrC "Bad arguments to -")))))))
+		(ErrorC (StrC "Bad arguments to +")))))))
 
 (define (desugar-gt (args : (listof ExprP))) : ExprC
   (let ([a1 (desugar (first args))]
@@ -79,17 +79,73 @@
 	 (Prim2C '< a1 a2)
 	 (ErrorC (StrC "Bad arguments to <")))))
 
+(define (desugar-field (f : FieldP)) : FieldC
+  (let ([n (fieldP-name f)]
+	[v (fieldP-value f)])
+    (fieldC n (desugar v))))
+
+
 (define (desugar (exprP : ExprP)) : ExprC
   (type-case ExprP exprP
-
     [NumP (n) (NumC n)]
-    ;; Fill in more cases here...
     [StrP (s) (StrC s)]
     [TrueP () (TrueC)]
     [FalseP () (FalseC)]
     [IdP (name) (IdC name)]
     [IfP (c t e) (IfC (desugar c) (desugar t) (desugar e))]
+    [ObjectP (fields) (ObjectC (map desugar-field fields))]
+    [DotP (obj field) (GetFieldC (desugar obj) (IdC field))]
+    [BracketP (obj field) (GetFieldC (desugar obj) (desugar field))]
+    ;[DotMethodP (obj field args)]
+    ;[BrackMethodP (obj field args)]
+    [FuncP (args body) (FuncC args (desugar body))]
+    [AppP (func args) (AppC (desugar func) 
+			    (map desugar args))]
+    [DefvarP (id bind body) (LetC id (desugar bind) (desugar body))]
+    [DeffunP (name ids funbody body)
+	     (LetC name 
+		   (FuncC ids (desugar funbody))
+		   (desugar body))]
 
+    ;[ForP (init test update body)]
+    [AssignP (lhs value)
+	     (type-case LHS lhs
+	       [BracketLHS (obj field) 
+			   (SetFieldC (desugar obj) (desugar field) (desugar value))]
+	       [DotLHS (obj field) 
+		       (SetFieldC (desugar obj) (IdC field) (desugar value))]
+	       [IdLHS (id) (Set!C id (desugar value))])]
+
+    ;[PrimAssignP (op : symbol) (lhs : LHS) (value : ExprP)]
+    ;(define-type LHS
+    ;  [BracketLHS (obj : ExprP) (field : Expr)]
+    ;  [DotLHS (obj : ExprP) (field : symbol)]
+    ;  [IdLHS (id : symbol)])
+    [PrimAssignP (op lhs value) 
+		 (type-case LHS lhs
+		   [BracketLHS (obj field) (ErrorC (StrC "not implemented"))]
+		   [DotLHS (obj field) (ErrorC (StrC "not implemented"))]
+;		   [DotLHS (obj field) 
+;			   (let ([lhs-v (IdC field)]
+;				 [rhs-v (desugar value)])
+;		;	     (IfC (and (check-type rhs-v "number")
+;		;		       (check-type lhs-v "number"))
+;				  (SetFieldC (desugar obj) lhs-v (Prim2C op lhs-v rhs-v)))]
+;		;		  (ErrorC (StrC (string-append 
+;		;				  "Bad arguments to "
+;		;				  (symbol->string op))))))]
+						
+		   [IdLHS (id) 
+			  (let ([lhs-v (IdC id)]
+				[rhs-v (desugar value)])
+				  (Set!C id (Prim2C op lhs-v rhs-v)))])]
+    
+
+    ;[PreIncP (lhs)]
+    ;[PostIncP (lhs)]
+    ;[PreDecP (lhs)]
+    ;[PostDecP (lhs)]
+    
     [PrimP (op args)
         (case op
           ['- (cond
