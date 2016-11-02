@@ -94,10 +94,14 @@
     [IdP (name) (IdC name)]
     [IfP (c t e) (IfC (desugar c) (desugar t) (desugar e))]
     [ObjectP (fields) (ObjectC (map desugar-field fields))]
-    [DotP (obj field) (GetFieldC (desugar obj) (IdC field))]
+    [DotP (obj field) (GetFieldC (desugar obj) (StrC (symbol->string field)))]
     [BracketP (obj field) (GetFieldC (desugar obj) (desugar field))]
-    ;[DotMethodP (obj field args)]
-    ;[BrackMethodP (obj field args)]
+    [DotMethodP (obj field args)
+		(AppC (GetFieldC (desugar obj) (StrC (symbol->string field)))
+		      (map desugar (cons obj args)))]
+    [BrackMethodP (obj field args)
+		  (AppC (GetFieldC (desugar obj) (desugar field))
+			(map desugar (cons obj args)))]
     [FuncP (args body) (FuncC args (desugar body))]
     [AppP (func args) (AppC (desugar func) 
 			    (map desugar args))]
@@ -106,46 +110,101 @@
 	     (LetC name 
 		   (FuncC ids (desugar funbody))
 		   (desugar body))]
-
-    ;[ForP (init test update body)]
     [AssignP (lhs value)
 	     (type-case LHS lhs
 	       [BracketLHS (obj field) 
 			   (SetFieldC (desugar obj) (desugar field) (desugar value))]
 	       [DotLHS (obj field) 
-		       (SetFieldC (desugar obj) (IdC field) (desugar value))]
+		       (SetFieldC (desugar obj) (StrC (symbol->string field)) (desugar value))]
 	       [IdLHS (id) (Set!C id (desugar value))])]
 
-    ;[PrimAssignP (op : symbol) (lhs : LHS) (value : ExprP)]
-    ;(define-type LHS
-    ;  [BracketLHS (obj : ExprP) (field : Expr)]
-    ;  [DotLHS (obj : ExprP) (field : symbol)]
-    ;  [IdLHS (id : symbol)])
     [PrimAssignP (op lhs value) 
 		 (type-case LHS lhs
-		   [BracketLHS (obj field) (ErrorC (StrC "not implemented"))]
-		   [DotLHS (obj field) (ErrorC (StrC "not implemented"))]
-;		   [DotLHS (obj field) 
-;			   (let ([lhs-v (IdC field)]
-;				 [rhs-v (desugar value)])
-;		;	     (IfC (and (check-type rhs-v "number")
-;		;		       (check-type lhs-v "number"))
-;				  (SetFieldC (desugar obj) lhs-v (Prim2C op lhs-v rhs-v)))]
-;		;		  (ErrorC (StrC (string-append 
-;		;				  "Bad arguments to "
-;		;				  (symbol->string op))))))]
-						
+		   [BracketLHS (obj field) 
+			       (case op
+				 ['+ (let ([arg1 (GetFieldC (desugar obj) (desugar field))]
+					   [arg2 (desugar value)])
+				       (IfC (and (check-type arg1 "number")
+						 (check-type arg2 "number"))
+					    (SetFieldC (desugar obj)
+						       (desugar field)
+						       (Prim2C 'num+ arg1 arg2))
+					    (IfC (and (check-type arg1 "string")
+						      (check-type arg2 "string"))
+						 (SetFieldC (desugar obj)
+							    (desugar field)
+							    (Prim2C 'string+ arg1 arg2))
+						 (ErrorC (StrC "Bad arguments to +")))))]
+				 ['- (let ([arg1 (GetFieldC (desugar obj) (desugar field))]
+					   [arg2 (desugar value)])
+				       (IfC (and (check-type arg1 "number")
+						 (check-type arg2 "number"))
+					    (SetFieldC (desugar obj)
+						       (desugar field)
+						       (Prim2C 'num+ arg1 arg2))
+					    (ErrorC (StrC "Bad arguments to +"))))]
+				 [else (ErrorC (StrC "Operation not implemented"))])]
+		   [DotLHS (obj field) 
+			   (case op
+			     ['+ (let ([arg1 (GetFieldC (desugar obj) (StrC (symbol->string field)))]
+				       [arg2 (desugar value)])
+				   (IfC (and (check-type arg1 "number")
+					     (check-type arg2 "number"))
+					(SetFieldC (desugar obj)
+						   (StrC (symbol->string field))
+						   (Prim2C 'num+ arg1 arg2))
+					(IfC (and (check-type arg1 "string")
+						  (check-type arg2 "string"))
+					     (SetFieldC (desugar obj)
+							(StrC (symbol->string field))
+							(Prim2C 'string+ arg1 arg2))
+					     (ErrorC (StrC "Bad arguments to +")))))]
+			     ['- (let ([arg1 (GetFieldC (desugar obj) (StrC (symbol->string field)))]
+				       [arg2 (desugar value)])
+				   (IfC (and (check-type arg1 "number")
+					     (check-type arg2 "number"))
+					(SetFieldC (desugar obj)
+						   (StrC (symbol->string field))
+						   (Prim2C 'num+ arg1 arg2))
+					(ErrorC (StrC "Bad arguments to -"))))]
+			     [else (ErrorC (StrC "Operation not implemented"))])]
 		   [IdLHS (id) 
-			  (let ([lhs-v (IdC id)]
-				[rhs-v (desugar value)])
-				  (Set!C id (Prim2C op lhs-v rhs-v)))])]
+			  (case op
+			    ['+ (IfC (and (check-type (IdC id) "number")
+					  (check-type (desugar value) "number"))
+				     (Set!C id (Prim2C 'num+ (IdC id) (desugar value)))
+				     (IfC (and (check-type (IdC id) "string")
+					       (check-type (desugar value) "string"))
+					  (Set!C id (Prim2C 'string+ (IdC id) (desugar value)))
+					  (ErrorC (StrC "Bad arguments to +"))))]
+			    ['- (IfC (and (check-type (IdC id) "number")
+					  (check-type (desugar value) "number"))
+				     (Set!C id (Prim2C 'num- (IdC id) (desugar value)))
+				     (ErrorC (StrC "Bad arguments to -")))]
+			    [else (ErrorC (StrC "Operation not implemented"))])]
+		   )]
     
 
-    ;[PreIncP (lhs)]
-    ;[PostIncP (lhs)]
-    ;[PreDecP (lhs)]
-    ;[PostDecP (lhs)]
-    
+;(define (desugar-gt (args : (listof ExprP))) : ExprC
+;  (let ([a1 (desugar (first args))]
+;	[a2 (desugar (second args))])
+;    (IfC (and (check-type a1 "number")
+;	      (check-type a2 "number"))
+;	 (Prim2C '> a1 a2)
+;	 (ErrorC (StrC "Bad arguments to >")))))
+  
+    [PostIncP (lhs) (LetC 'pre-val (IdC lhs)
+			 (SeqC (Set!C lhs (Prim2C 'num+ (IdC lhs) (NumC 1)))
+			       (IdC 'pre-val)))]
+    [PreIncP (lhs) (SeqC 
+		      (Set!C lhs (Prim2C 'num+ (IdC lhs) (NumC 1)))
+		      (IdC lhs))]
+    [PostDecP (lhs) (LetC 'pre-val (IdC lhs)
+			 (SeqC (Set!C lhs (Prim2C 'num- (IdC lhs) (NumC 1)))
+			       (IdC 'pre-val)))]
+    [PreDecP (lhs) (SeqC 
+		      (Set!C lhs (Prim2C 'num- (IdC lhs) (NumC 1)))
+		      (IdC lhs))]
     [PrimP (op args)
         (case op
           ['- (cond
@@ -175,6 +234,32 @@
 	  )]
     [SeqP (es) (desugar-seq es)]
 		 
+    [ForP (init test update body)
+          ;; dummy-fun will tell us it was called if we do so accidentally
+          (local ([define dummy-fun (FuncC (list) (ErrorC (StrC "Dummy function")))])
+	  (LetC 'init-var (desugar init)  
+		(IfC (desugar test)
+		     ;; for-var will hold the actual function once we tie
+		     ;; everything together
+		     (LetC 'for-var dummy-fun
+			   (LetC 'for-func
+				 ;; this function does the real work - it runs the body of
+				 ;; the for loop, runs the update, then re-runs it if the 
+				 ;; test is true, and stops if its false
+				 (FuncC (list)
+					(LetC 'body-var (desugar body) 
+					      (SeqC
+						(desugar update)
+						(IfC (desugar test)
+						     (AppC (IdC 'for-var) (list))
+						     (IdC 'body-var)))))
+
+				 ;; The Set!C here makes sure that 'while-var will resolve
+				 ;; to the right value later, and the AppC kicks things off
+				 (SeqC (Set!C 'for-var (IdC 'for-func))
+				       (AppC (IdC 'for-var) (list)))))
+
+               (IdC 'init-var))))]
 
 
     [WhileP (test body)
@@ -203,6 +288,6 @@
                          (AppC (IdC 'while-var) (list)))))
 
                (FalseC)))]
-    [else (ErrorC (StrC (string-append "Haven't desugared a case yet:\n"
-                                       (to-string exprP))))]))
+    ))
+
 
