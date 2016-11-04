@@ -1,0 +1,2 @@
+#!/bin/bash
+./assignment4-osx --brief --set-interp typed-interp-template.rkt --test suite/brown/
