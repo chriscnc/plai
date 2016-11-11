@@ -25,6 +25,29 @@
 		      (numC 2)))
 	  "+ type error")
 
+(test (numT)
+      (tce (ifC (boolC true)
+		(numC 42)
+		(numC 24))))
+
+(test/exn (tce (ifC (boolC true)
+		    (boolC true)
+		    (numC 24)))
+	  "if then and else not same type")
+
+(test/exn (tce (ifC (numC 42)
+		    (numC 24)
+		    (numC 24)))
+	  "if condition not boolean")
+
+; something a little more complicated
+(test/exn (tce (ifC (appC (lamC 'x (numT) (numT) (plusC (idC 'x)
+							(idC 'x)))
+			  (numC 10))
+		    (numC 24)
+		    (numC 24)))
+	  "if condition not boolean")
+
 (test (funT (numT) (numT)) 
       (tce (lamC 'x 
 		 (numT) 

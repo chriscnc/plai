@@ -19,26 +19,42 @@
 
 (define-type ExprC
   [numC  (n : number)]
+  [boolC (b : boolean)]
   [idC   (s : symbol)]
+  [ifC   (c : ExprC) (t : ExprC) (e : ExprC)]
   [appC  (fun : ExprC) (arg : ExprC)]
   [plusC (l : ExprC) (r : ExprC)]
   [multC (l : ExprC) (r : ExprC)]
   [lamC  (arg : symbol) (argT : Type) (retT : Type) (body : ExprC)] )
 
+
 (define-type Value
   [numV (n : number)]
+  [boolV (b : boolean)]
   [closV (arg : symbol) (body : ExprC) (env : Env)])
 
 
 (define-type Type
   [numT]
+  [boolT]
   [funT (arg : Type) (ret : Type)])
 
 
 (define (tc [expr : ExprC] [env : Env]) : Type
   (type-case ExprC expr
     [numC  (n) (numT)]
+    [boolC (b) (boolT)]
     [idC   (n) (lookup n env)]
+    [ifC   (c t e) (let ([ct (tc c env)]
+			 [tt (tc t env)]
+			 [et (tc e env)])
+		     (cond 
+		       [(not (boolT? ct))
+			(error 'tc "if condition not boolean")]
+		       [(not (equal? tt et))
+			(error 'tc "if then and else not same type")]
+		       [else tt] ; or et, doesn't matter are the same
+		       ))]
     [plusC (l r) (let ([lt (tc l env)]
 		       [rt (tc r env)])
 		   (if (and (equal? lt (numT))
