@@ -1,0 +1,28 @@
+Scope
+
+Problem 1
+
+
+Problem 2
+
+
+Problem 3
+A: It is not true. Taking the oldest value of x in the environment in the following counter-example would yield an incorrect result.
+
+(let ([x 3])
+  (let ([x 4])
+    (let ([f (lambda (y) (+ x y))])
+      (let ([x 5])
+        (f 10)))))
+
+env = [(x 5) (x 4) (x 3)]
+
+
+Problem 4
+A: The with operator in JS violates static scope.
+
+
+Problem 5
+A: The closure only need to close over the bindings in the environment that are the free variables of the lambda.
+
+

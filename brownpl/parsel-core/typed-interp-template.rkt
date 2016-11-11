@@ -19,12 +19,32 @@
 ;  [TrueV]
 ;  [FalseV])
 
-(define (interp-fargs [fargs : (listof ExprC)] [env : Env] [store : Store]) : (listof Result)
-  (cond
-    [(empty? fargs) '()]
-    [else (type-case Result (interp-full (first fargs) env store)
-            [v*s (v s) (cons (v*s v s) 
-			     (interp-fargs (rest fargs) env s))])]))
+;(define (interp-fargs [fargs : (listof ExprC)] [env : Env] [store : Store]) : (listof Result)
+;  (cond
+;    [(empty? fargs) '()]
+;    [else (type-case Result (interp-full (first fargs) env store)
+;            [v*s (v s) (cons (v*s v s) 
+;			     (interp-fargs (rest fargs) env s))])]))
+
+;(define (add-binding [env : Env] [id : symbol] [loc : Location]) : Env
+;  (cons (bind id loc) env))
+
+;(define (update-store [store : Store] [loc : Location] [value : ValueC]) : Store
+;  (cons (cell loc value) store))
+
+(define (apply-fn [value : ValueC] [exprs : (listof ExprC)] [env : Env] [store : Store]) : ValueC
+  (type-case ValueC value
+    [ClosureV (args body c-env)
+	      (let ([vs (map (lambda (expr)
+			       (interp-full expr env store))
+			     exprs)])
+		(if (equal? (length args) (length vs))
+		  (let ([locs (build-list (length vs) (lambda (x) (new-loc)))]
+			[sto1 (map
+
+		  (interp-error "Applicationfailed with artiy mismatch")))]
+    [else (interp-error (string-append "Not a function: " 
+				       (pretty-value value)))]))
 
 
 (define (interp-full [exprC : ExprC] [env : Env] [store : Store]) : Result
@@ -40,19 +60,17 @@
 
     [FuncC (args body) (v*s (ClosureV args body env) store)]
 
+  ;[FuncC (args : (listof symbol)) (body : ExprC)]
 ;    [AppC (func : ExprC) (args : (listof ExprC))]
     ; start by assuming we don't need to thread the store through
     ; all the arg
-    [AppC (func args) (let ([results (interp-fargs args env store)])
-			(interp-full body 
-				     (foldl extend-env )
-				     (v*s-store (first results))))]
+    ;[AppC (func args) ] 
     [LetC (id expr body) (type-case Result (interp-full expr env store)
 			   [v*s (v-bind s-bind)
 				(let ([loc (new-loc)])
 				  (interp-full body
-					       (extend-env (bind id loc) env)
-					       (override-store (cell loc v-bind) s-bind)))])]
+					       (add-binding env id loc)
+					       (update-store s-bind loc v-bind)))])]
     [IdC (id) (v*s (fetch (lookup id env) store) store)]
     [Set!C (id val) (type-case Result (interp-full val env store)
 		        [v*s (v-val s-val)
@@ -192,8 +210,11 @@
 	(set-box! n (add1 (unbox n)))
 	(unbox n)))))
 	
-(define extend-env cons)
-(define mt-env empty)
+(define (add-binding [env : Env] [id : symbol] [loc : Location]) : Env
+  (cons (bind id loc) env))
+
+(define (update-store [store : Store] [loc : Location] [value : ValueC]) : Store
+  (cons (cell loc value) store))
 
 ;; a start to implementing equal semantics explicitly rather than
 ;; relying on Racket's equal semantics
