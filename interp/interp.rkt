@@ -22,10 +22,13 @@
   [boolC (b : boolean)]
   [idC   (s : symbol)]
   [ifC   (c : ExprC) (t : ExprC) (e : ExprC)]
+  [if0C  (c : ExprC) (t : ExprC) (e : ExprC)]
   [appC  (fun : ExprC) (arg : ExprC)]
   [plusC (l : ExprC) (r : ExprC)]
   [multC (l : ExprC) (r : ExprC)]
-  [lamC  (arg : symbol) (argT : Type) (retT : Type) (body : ExprC)] )
+  [lamC  (arg : symbol) (argT : Type) (retT : Type) (body : ExprC)] 
+  [recC  (f : symbol) (a : symbol) (aT : Type) (rT : Type) (b : ExprC) (u : ExprC)]
+  )
 
 
 (define-type Value
@@ -55,6 +58,16 @@
 			(error 'tc "if then and else not same type")]
 		       [else tt] ; or et, doesn't matter are the same
 		       ))]
+    [if0C  (c t e) (let ([ct (tc c env)]
+			 [tt (tc t env)]
+			 [et (tc e env)])
+		     (cond
+		       [(not (numT? ct))
+			(error 'tc "if0 condition not number")]
+		       [(not (equal? tt et))
+			(error 'tc "if0 then and else not same type")]
+		       [else tt] ; or et, doesn't matter are the same
+		       ))]
     [plusC (l r) (let ([lt (tc l env)]
 		       [rt (tc r env)])
 		   (if (and (equal? lt (numT))
@@ -71,6 +84,14 @@
 	  (if (equal? (tc b (extend-env (bind a argT) env)) retT)
 	    (funT argT retT)
 	    (error 'tc "lam type mismatch"))]
+    [recC (f a aT rT b u)
+	  (let ([extended-env (extend-env (bind f (funT aT rT)) env)])
+		(cond
+		  [(not (equal? rT (tc b ; tc the body where f can be in the body
+				       (extend-env (bind a aT)
+						   extended-env))))
+		   (error 'tc "body return type not correct")]
+		  [else (tc u extended-env)]))]
     [appC (f a) (let ([ft (tc f env)]
 		      [at (tc a env)])
 		  (cond 

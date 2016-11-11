@@ -40,6 +40,16 @@
 		    (numC 24)))
 	  "if condition not boolean")
 
+(test/exn (tce (if0C (boolC true)
+		     (numC 24)
+		     (numC 24)))
+	  "if0 condition not number")
+
+(test/exn (tce (if0C (numC 0)
+		     (boolC true)
+		     (numC 24)))
+	  "if0 then and else not same type")
+
 ; something a little more complicated
 (test/exn (tce (ifC (appC (lamC 'x (numT) (numT) (plusC (idC 'x)
 							(idC 'x)))
@@ -47,6 +57,16 @@
 		    (numC 24)
 		    (numC 24)))
 	  "if condition not boolean")
+
+(test (numT)
+      (tce (recC 'fact 'n (numT) (numT)
+		 (if0C (idC 'n)
+		       (numC 0)
+		       (multC (idC 'n) 
+			      (appC (idC 'fact)
+				    (plusC (idC 'n) (numC -1)))))
+		 (appC (idC 'fact) (numC 5)))))
+
 
 (test (funT (numT) (numT)) 
       (tce (lamC 'x 
