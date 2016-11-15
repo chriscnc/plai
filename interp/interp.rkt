@@ -1,105 +1,49 @@
 #lang plai-typed
 
 
-(define-type Binding
-  [bind (name : symbol) (typ : Type)])
-
-(define-type-alias Env (listof Binding))
-(define mt-env empty)
-(define extend-env cons)
-
-(define (lookup [n : symbol] [env : Env]) : Type
-  (cond
-    [(empty? env) (error n "name not found")]
-    [else (cond 
-	    [(symbol=? n (bind-name (first env))) 
-	     (bind-typ (first env))]
-	    [else (lookup n (rest env))])]))
+(define (append3 [l1 : (listof 'a)] [l2 : (listof 'a)] [l3 : (listof 'a)]) : (listof 'a)
+  (append l1 (append l2 l3)))
 
 
 (define-type ExprC
   [numC  (n : number)]
-  [boolC (b : boolean)]
   [idC   (s : symbol)]
-  [ifC   (c : ExprC) (t : ExprC) (e : ExprC)]
-  [if0C  (c : ExprC) (t : ExprC) (e : ExprC)]
   [appC  (fun : ExprC) (arg : ExprC)]
   [plusC (l : ExprC) (r : ExprC)]
   [multC (l : ExprC) (r : ExprC)]
-  [lamC  (arg : symbol) (argT : Type) (retT : Type) (body : ExprC)] 
-  [recC  (f : symbol) (a : symbol) (aT : Type) (rT : Type) (b : ExprC) (u : ExprC)]
+  [lamC  (a : symbol) (b : ExprC)] 
   )
 
+(define-type Constraints
+  [eqCon (lhs : Term) (rhs : Term)])
 
-(define-type Value
-  [numV (n : number)]
-  [boolV (b : boolean)]
-  [closV (arg : symbol) (body : ExprC) (env : Env)])
+(define-type Term
+  [tExp (e : ExprC)]
+  [tVar (s : symbol)]
+  [tNum]
+  [tArrow (dom : Term) (rng : Term)])
+	     
 
-
-(define-type Type
-  [numT]
-  [boolT]
-  [funT (arg : Type) (ret : Type)])
-
-
-(define (tc [expr : ExprC] [env : Env]) : Type
-  (type-case ExprC expr
-    [numC  (n) (numT)]
-    [boolC (b) (boolT)]
-    [idC   (n) (lookup n env)]
-    [ifC   (c t e) (let ([ct (tc c env)]
-			 [tt (tc t env)]
-			 [et (tc e env)])
-		     (cond 
-		       [(not (boolT? ct))
-			(error 'tc "if condition not boolean")]
-		       [(not (equal? tt et))
-			(error 'tc "if then and else not same type")]
-		       [else tt] ; or et, doesn't matter are the same
-		       ))]
-    [if0C  (c t e) (let ([ct (tc c env)]
-			 [tt (tc t env)]
-			 [et (tc e env)])
-		     (cond
-		       [(not (numT? ct))
-			(error 'tc "if0 condition not number")]
-		       [(not (equal? tt et))
-			(error 'tc "if0 then and else not same type")]
-		       [else tt] ; or et, doesn't matter are the same
-		       ))]
-    [plusC (l r) (let ([lt (tc l env)]
-		       [rt (tc r env)])
-		   (if (and (equal? lt (numT))
-			    (equal? rt (numT)))
-		     (numT)
-		     (error 'tc "+ type error")))]
-    [multC (l r) (let ([lt (tc l env)]
-		       [rt (tc r env)])
-		   (if (and (equal? lt (numT))
-			    (equal? rt (numT)))
-		     (numT)
-		     (error 'tc "* type error")))]
-    [lamC (a argT retT b) 
-	  (if (equal? (tc b (extend-env (bind a argT) env)) retT)
-	    (funT argT retT)
-	    (error 'tc "lam type mismatch"))]
-    [recC (f a aT rT b u)
-	  (let ([extended-env (extend-env (bind f (funT aT rT)) env)])
-		(cond
-		  [(not (equal? rT (tc b ; tc the body where f can be in the body
-				       (extend-env (bind a aT)
-						   extended-env))))
-		   (error 'tc "body return type not correct")]
-		  [else (tc u extended-env)]))]
-    [appC (f a) (let ([ft (tc f env)]
-		      [at (tc a env)])
-		  (cond 
-		    [(not (funT? ft))
-		     (error 'tc "non function type in function position")]
-		    [(not (equal? (funT-arg ft) at))
-		     (error 'tc "app arg type mismatch")]
-		    [else (funT-ret ft)]))]
+(define (cg [e : ExprC]) : (listof Constraints)
+  (type-case ExprC e
+    [numC (_) (list (eqCon (tExp e) (tNum)))]
+    [idC (s) (list (eqCon (tExp e) (tVar s)))]
+    [plusC (l r) (append3 (cg l)
+			  (cg r)
+			  (list (eqCon (tExp l) (tNum))
+				(eqCon (tExp r) (tNum))
+				(eqCon (tExp e) (tNum))))]
+    [multC (l r) (append3 (cg l)
+			  (cg r)
+			  (list (eqCon (tExp l) (tNum))
+				(eqCon (tExp r) (tNum))
+				(eqCon (tExp e) (tNum))))]
+    [lamC (a b) (append (cg b)
+			(list (eqCon (tExp e) (tArrow (tVar a) (tExp b)))))]
+    [appC (f a) (append3 (cg f)
+			 (cg a)
+			 (list (eqCon (tExp f) (tArrow (tExp a) (tExp e)))))]
     ))
+
 
 
